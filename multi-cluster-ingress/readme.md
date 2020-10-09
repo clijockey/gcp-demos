@@ -140,7 +140,7 @@ Once it is you will see the `ingress vip` displayed in the `VIP` field.
 `curl <ingress vip>/ping` or just browse to `http://<ingress vip>` . The cluster that the traffic is forwarded to depends on location. The GCLB is designed to forward client traffic to the closest available backend with capacity.
 
 The following shows the relationship between MCI/MCS and the load balancers across 2 member clusters.
-!()[https://cloud.google.com/kubernetes-engine/images/mci-mcs-gce-load-balancer.png]
+![](https://cloud.google.com/kubernetes-engine/images/mci-mcs-gce-load-balancer.png)
 
 Some commands to try;
 ```
