@@ -5,11 +5,11 @@ NOTE: Need to dry run this from scratch!!
 -----------------------------------------
 
 ## Setup [OPTIONAL]
-Create the GKE cluststers to use as part of the demo. If you dont already have clusters spun up the `setup.sh` script will spin up 3 clusters, one in the US, one in the EU and one in the UK. The manual steps can be followed in the (documentation)[https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-for-anthos-setup] along with the requirements.
+Create the GKE cluststers to use as part of the demo. If you dont already have clusters spun up the `setup.sh` script will spin up 3 clusters, one in the US, one in the EU and one in the UK. The manual steps can be followed in the [documentation](https://cloud.google.com/kubernetes-engine/docs/how-to/ingress-for-anthos-setup) along with the requirements.
 
 Prereq;
 * `gcloud` installed and logged
-* envvar set that are in `envrc-example`, you will need to specify your project name. If you use (direnv[https://direnv.net/]) just remain to `.envrc`.
+* envvar set that are in `envrc-example`, you will need to specify your project name. If you use [direnv](https://direnv.net/) just remain to `.envrc`.
 
 Run;
 ```bash
@@ -24,7 +24,7 @@ You will need to decide which of you clusters will act ast the "Config Cluster".
 
 The config cluster is a GKE cluster you choose to be the central point of control for Ingress across the member clusters. Unlike GKE Ingress, the Anthos Ingress controller does not live in a single cluster but is a Google-managed service that watches resources in the config cluster. This GKE cluster is used as a multi-cluster API server to store resources such as `MultiClusterIngress` and `MultiClusterService`. Any member cluster can become a config cluster, but there can only be one config cluster at a time.
 
-For more information about config clusters, see (Config cluster design)[https://cloud.google.com/kubernetes-engine/docs/concepts/ingress-for-anthos#config_cluster_design].
+For more information about config clusters, see [Config cluster design](https://cloud.google.com/kubernetes-engine/docs/concepts/ingress-for-anthos#config_cluster_design).
 
 Check that the clusters you want to include are registered;
 
@@ -149,7 +149,9 @@ kubectl describe mci zone-ingress
 ```
 
 TODO: ssl cert
+
 TODO: setup with DNS against VIP
+
 TODO: narative to the demo
 
 # Clean up
