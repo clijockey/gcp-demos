@@ -1,0 +1,5 @@
+gcloud config set project <PROJECT>
+export PROJECT_ID=$(gcloud config get-value project)
+export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)")
+export MCI_IP=$(gcloud compute addresses describe mci-static --global --format="json" | jq -r .address) 
+export SA_KEY_FILE="<localion of account json>"
