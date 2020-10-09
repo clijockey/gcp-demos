@@ -1,180 +1,350 @@
-
-go/sme-lab-3
-go/sme-lab-4
-go/sme-lab-5
-
-`pack --h
+# Buildpacks 
 
 
-What's a builder, anyway?
-A builder is an image that bundles all the bits and information on how to build your apps. 
-     * includes the buildpacks that will be used as well as the environment for building and running your app. 
-     * The builder we specified is publicly available on Docker Hub cloudfoundry/cnb (click on the Tags tab to see available builder images).
+## Install and set-up
 
-We can use pack to get more information about the builder:
-     pack suggest-builders
-
-     pack inspect-builder gcr.io/buildpacks/builder:v1
-
-          From the output, you can see that this builder supports several programming frameworks through ordered sets of modular buildpacks, and it specifies the order of detection that will be applied to applications. You can also see the stack and the run image that the builder will use for the app image it produces.
-
-     pack inspect-builder gcr.io/paketo-buildpacks/builder:full-cf 
-
-     docker images
-
-     pack build coffee:gcp --builder gcr.io/buildpacks/builder:v1
-     gcr.io/paketo-buildpacks/builder:full-cf 
-
-     docker images
-          You should see both the builder image as well as the run image. pack downloaded both of these during the first build. We can expect future builds with the same builder to be faster as they can use the local copies.
-
-     pack inspect-image coffee:gcp
-
-     docker run -p 8080:8080 coffee:gcp
-
-     pack inspect-image coffee:gcp
-
-     pack set-default-builder gcr.io/buildpacks/builder:v1
-
-Change some code;
-     pack build coffee:gcp2
-
-     pack build --publish gcr.io/big-rob/coffee:v2
-
-     pack build fn-coffee --builder gcr.io/buildpacks/builder:v1 --env GOOGLE_FUNCTION_TARGET=myFunction
+* Have an app you want to containerise ready - this repo has a Java example
+* Install `pack`
+* If you want to remove all the docker images from your machine 
+```bash
+docker rmi -f $(docker images -a -q)
+```
+* `pack set-default-builder gcr.io/buildpacks/builder:v1`
+* Environment varaibales listed in `.envrc-example`  
 
 
-     pack build coffee:rebase --builder gcr.io/buildpacks/builder:775ac8cb2b824aca86f96604f8f8345fb1568cfd
+## To the demo
 
-     pack rebase coffee:rebase --run-image gcr.io/buildpacks/gcp/run:latest  
-     pack rebase coffee:rebase --run-image gcr.io/buildpacks/gcp/run@sha256:838856abec8d7d2178cfc13d3f598bb6ea51a9abc23784e3ee22a01d0966e32d  
+### Developer Hat
 
+I have finished writing/adding to my app and now I want to create a container. We will use Cloud Native buildpacks, which makes use of a CLI tool called `pack`.
 
+Lets just run it locally to check everything is as expected - `./mvnw -DskipTests spring-boot:run` (yes I am a bad human for skipping tests)
 
-40 years old!!!! docker images hahaha
+```bash
+pack build eu.gcr.io/$PROJECT_ID/coffee:v1
+```
 
-pack inspect-image rob:v2 --bom
-pack inspect-image rob:v2 --bom | jq .remote
-pack inspect-image coffee:rebase
-pack rebase coffee:rebase --run-image gcr.io/buildpacks/gcp/run:504104bbd82cffb03454f9527bd20bf1a72ce852
-pack inspect-image rob:rebase
-
-docker push gcr.io/big-rob/rob:rebase
------------------------
-
+This will now create the container image.
 
 In the detection phase, we see that the builder automatically detects which buildpacks to use:
 
+```bash
+# OUTPUT WILL BE SOMETHING LIKE THIS
+v1: Pulling from buildpacks/builder
+Digest: sha256:61d53c4f75f79f158ea68d5d44d628acf3c6e2582b517f8968a3c4b5ce3ca8a6
+Status: Image is up to date for gcr.io/buildpacks/builder:v1
+v1: Pulling from buildpacks/gcp/run
+Digest: sha256:ce9cc3addebd6bcb63690138bcdccfdebeeaf733aa950c722c34755fe0f47b74
+Status: Image is up to date for gcr.io/buildpacks/gcp/run:v1
 ===> DETECTING
-[detector] 7 of 13 buildpacks participating
-[detector] org.cloudfoundry.openjdk                   v1.2.11
-...
-In the analysis & restore phases, it finds opportunities for optimization and for restoring from cache. Since this is the first time we are using the specified builder and building this image, there are none:
-
+4 of 5 buildpacks participating
+google.java.runtime    0.9.0
+google.java.maven      0.9.0
+google.java.entrypoint 0.9.0
+google.utils.label     0.0.1
 ===> ANALYZING
-[analyzer] Warning: Image "index.docker.io/library/spring-sample-app:latest" not found
+Previous image with name "eu.gcr.io/clijockey/coffee:v1" not found
 ===> RESTORING
-In the build phase, it applies the participating buildpacks that it detected earlier, in order. Notice that each contributes to the app image in layers, including the JDK (to compile from source), the JRE (for the runtime image), the Build System (for the Maven build), etc...
-
 ===> BUILDING
-[builder]
-[builder] Cloud Foundry OpenJDK Buildpack v1.2.11
-[builder]   OpenJDK JDK 11.0.6: Contributing to layer
-...
-[builder]   OpenJDK JRE 11.0.6: Contributing to layer
-...
-[builder] Cloud Foundry Build System Buildpack v1.2.9
-[builder]     Using wrapper
-[builder]     Linking Cache to /home/cnb/.m2
-[builder]   Compiled Application (133 files): Contributing to layer
-...
-[builder] [INFO] Replacing main artifact with repackaged archive
-[builder] [INFO] ------------------------------------------------------------------------
-[builder] [INFO] BUILD SUCCESS
-[builder] [INFO] ------------------------------------------------------------------------
-...
-[builder] Cloud Foundry JVM Application Buildpack v1.1.9
-[builder]   Executable JAR: Contributing to layer
-In the export phase, it produces the layered OCI image for our application. Layering will make it more efficient to update in the future. The image name is the name we specified in our pack build command; the tag is latest since we didn't specify a tag.
+=== Java - Runtime (google.java.runtime@0.9.0) ===
+Using latest Java 11 runtime version. You can specify a different version with GOOGLE_RUNTIME_VERSION: https://github.com/GoogleCloudPlatform/buildpacks#configuration
+--------------------------------------------------------------------------------
+Running "curl --silent https://api.adoptopenjdk.net/v3/assets/feature_releases/11/ga?architecture=x64&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=linux&page=0&page_size=1&project=jdk&sort_order=DESC&vendor=adoptopenjdk"
 
+[
+    {
+        "binaries": [
+            {
+                "architecture": "x64",
+                "download_count": 145617,
+                "heap_size": "normal",
+                "image_type": "jdk",
+                "jvm_impl": "hotspot",
+                "os": "linux",
+                "package": {
+                    "checksum": "6e4cead158037cb7747ca47416474d4f408c9126be5b96f9befd532e0a762b47",
+                    "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                    "download_count": 145617,
+                    "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                    "metadata_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz.json",
+                    "name": "OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                    "size": 193398310
+                },
+                "project": "jdk",
+                "scm_ref": "jdk-11.0.8+10_adopt",
+                "updated_at": "2020-07-15T14:30:29Z"
+            }
+        ],
+        "download_count": 706177,
+        "id": "MDc6UmVsZWFzZTI4NTg5Nzcz.pCNBA7G9E1o7pw==",
+        "release_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/tag/jdk-11.0.8%2B10",
+        "release_name": "jdk-11.0.8+10",
+        "release_type": "ga",
+        "timestamp": "2020-07-15T14:29:27Z",
+        "updated_at": "2020-07-15T14:29:27Z",
+        "vendor": "adoptopenjdk",
+        "version_data": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    }
+]Done "curl --silent https://api.adoptopenjdk.net/v3/assets/feature..." (974.69067ms)
+Installing Java v11.0.8+10
+--------------------------------------------------------------------------------
+Running "bash -c curl --fail --show-error --silent --location --retry 3 https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz | tar xz --directory /layers/google.java.runtime/java --strip-components=1"
+Done "bash -c curl --fail --show-error --silent --location --retry..." (38.167505827s)
+=== Java - Maven (google.java.maven@0.9.0) ===
+--------------------------------------------------------------------------------
+Running "./mvnw clean package --batch-mode -DskipTests --quiet"
+Done "./mvnw clean package --batch-mode -DskipTests --quiet" (1m4.02398963s)
+=== Java - Entrypoint (google.java.entrypoint@0.9.0) ===
+=== Utils - Label Image (google.utils.label@0.0.1) ===
 ===> EXPORTING
-[exporter] Adding layer 'launcher'
-...
-[exporter] Adding layer 'org.cloudfoundry.openjdk:openjdk-jre'
-[exporter] Adding layer 'org.cloudfoundry.openjdk:security-provider-configurer'
-...
-[exporter] *** Images (c38380737b91):
-[exporter]       index.docker.io/library/spring-sample-app:latest
-The export phase also caches layers, enabling more efficient re-builds in the future.
+Adding layer 'google.java.runtime:java'
+Adding 1/1 app layer(s)
+Adding layer 'launcher'
+Adding layer 'config'
+Adding label 'io.buildpacks.lifecycle.metadata'
+Adding label 'io.buildpacks.build.metadata'
+Adding label 'io.buildpacks.project.metadata'
+*** Images (a022e574d577):
+      eu.gcr.io/clijockey/coffee:v1
+Adding cache layer 'google.java.runtime:java'
+Adding cache layer 'google.java.maven:m2'
+Successfully built image eu.gcr.io/clijockey/coffee:v1
 
-[exporter] Adding cache layer 'org.cloudfoundry.openjdk:openjdk-jdk'
-[exporter] Adding cache layer 'org.cloudfoundry.buildsystem:build-system-application'
-...
-Wait until the command completes. You should see Successfully built image spring-sample-app as the last line in the log.
+```
 
 
-Let's dive further into the pack build command by re-building the image and examining the log again.
+```bash
+docker images
+```
 
-Before we re-build, let's make a small code change.
+```
+docker run -p 8080:8080 eu.gcr.io/$PROJECT_ID/coffee:v1
+```
+```bash
+dive eu.gcr.io/$PROJECT_ID/coffee:v1
+```
 
-App source code change
-Recall that the app displayed the message "hello, world". Let's change that for our next build.
+Lets make some changes to the app, and this time we will also publish the container image to the registry.
 
-Run the following commands to cd into the app directory and update the source code:
+```bash
+# Alter the application
+pack build --publish eu.gcr.io/$PROJECT_ID/coffee:v2
+```
 
-cd ~/spring-sample-app
-sed -i 's/hello/greetings/g' src/main/java/com/example/springsampleapp/HelloController.java
-You can verify that the file contains the updated string using cat src/main/java/com/example/springsampleapp/HelloController.java
+You should notice the build is a bit faster;
+* The builder and run (stack) images are now available in the local Docker repository
+* Even though we made a change to our app code, the build was able to re-use layers from the app image and from cache (pay special attention to the logs for the restoring, analyzing, and exporting phases). Building a layered image enables pack to efficiently recreate only the layers that have changed.
 
-Re-build the image
-Now, let's re-build the image. We no longer need to specify the builder since we have set a default builder. We also no longer need to specify the path since we are now in the directory containing the source code. Hence, we can run a simplified pack build command with only the image name:
+Notice the reusing layers, time to build etc...
 
-pack build spring-sample-app
-Speedy re-build
-Notice that the build is faster the second time. A few factors contribute to this:
+```bash
+# OUTPUT
+v1: Pulling from buildpacks/builder
+Digest: sha256:61d53c4f75f79f158ea68d5d44d628acf3c6e2582b517f8968a3c4b5ce3ca8a6
+Status: Image is up to date for gcr.io/buildpacks/builder:v1
+v1: Pulling from buildpacks/gcp/run
+Digest: sha256:ce9cc3addebd6bcb63690138bcdccfdebeeaf733aa950c722c34755fe0f47b74
+Status: Image is up to date for gcr.io/buildpacks/gcp/run:v1
+===> DETECTING
+4 of 5 buildpacks participating
+google.java.runtime    0.9.0
+google.java.maven      0.9.0
+google.java.entrypoint 0.9.0
+google.utils.label     0.0.1
+===> ANALYZING
+Restoring metadata for "google.java.runtime:java" from app image
+Restoring metadata for "google.java.maven:m2" from cache
+===> RESTORING
+Restoring data for "google.java.runtime:java" from cache
+Restoring data for "google.java.maven:m2" from cache
+===> BUILDING
+=== Java - Runtime (google.java.runtime@0.9.0) ===
+Using latest Java 11 runtime version. You can specify a different version with GOOGLE_RUNTIME_VERSION: https://github.com/GoogleCloudPlatform/buildpacks#configuration
+--------------------------------------------------------------------------------
+Running "curl --silent https://api.adoptopenjdk.net/v3/assets/feature_releases/11/ga?architecture=x64&heap_size=normal&image_type=jdk&jvm_impl=hotspot&os=linux&page=0&page_size=1&project=jdk&sort_order=DESC&vendor=adoptopenjdk"
 
-The builder and run (stack) images are now available in the local Docker repository
+[
+    {
+        "binaries": [
+            {
+                "architecture": "x64",
+                "download_count": 145617,
+                "heap_size": "normal",
+                "image_type": "jdk",
+                "jvm_impl": "hotspot",
+                "os": "linux",
+                "package": {
+                    "checksum": "6e4cead158037cb7747ca47416474d4f408c9126be5b96f9befd532e0a762b47",
+                    "checksum_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz.sha256.txt",
+                    "download_count": 145617,
+                    "link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                    "metadata_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/download/jdk-11.0.8%2B10/OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz.json",
+                    "name": "OpenJDK11U-jdk_x64_linux_hotspot_11.0.8_10.tar.gz",
+                    "size": 193398310
+                },
+                "project": "jdk",
+                "scm_ref": "jdk-11.0.8+10_adopt",
+                "updated_at": "2020-07-15T14:30:29Z"
+            }
+        ],
+        "download_count": 706177,
+        "id": "MDc6UmVsZWFzZTI4NTg5Nzcz.pCNBA7G9E1o7pw==",
+        "release_link": "https://github.com/AdoptOpenJDK/openjdk11-binaries/releases/tag/jdk-11.0.8%2B10",
+        "release_name": "jdk-11.0.8+10",
+        "release_type": "ga",
+        "timestamp": "2020-07-15T14:29:27Z",
+        "updated_at": "2020-07-15T14:29:27Z",
+        "vendor": "adoptopenjdk",
+        "version_data": {
+            "build": 10,
+            "major": 11,
+            "minor": 0,
+            "openjdk_version": "11.0.8+10",
+            "security": 8,
+            "semver": "11.0.8+10"
+        }
+    }
+]Done "curl --silent https://api.adoptopenjdk.net/v3/assets/feature..." (801.041574ms)
+=== Java - Maven (google.java.maven@0.9.0) ===
+--------------------------------------------------------------------------------
+Running "./mvnw clean package --batch-mode -DskipTests --quiet"
+Done "./mvnw clean package --batch-mode -DskipTests --quiet" (38.884720051s)
+=== Java - Entrypoint (google.java.entrypoint@0.9.0) ===
+=== Utils - Label Image (google.utils.label@0.0.1) ===
+===> EXPORTING
+Reusing layer 'google.java.runtime:java'
+Adding 1/1 app layer(s)
+Reusing layer 'launcher'
+Adding layer 'config'
+Adding label 'io.buildpacks.lifecycle.metadata'
+Adding label 'io.buildpacks.build.metadata'
+Adding label 'io.buildpacks.project.metadata'
+*** Images (c3b45a640714):
+      eu.gcr.io/clijockey/coffee:v2
+Reusing cache layer 'google.java.runtime:java'
+Reusing cache layer 'google.java.maven:m2'
+Successfully built image eu.gcr.io/clijockey/coffee:v2
 
-Spring/Java dependencies are now available in a local Maven (.m2) repository
+```
 
-Even though we made a change to our app code, the build was able to re-use layers from the app image and from cache (pay special attention to the logs for the restoring, analyzing, and exporting phases). Building a layered image enables pack to efficiently recreate only the layers that have changed.
+```bash
+dive eu.gcr.io/$PROJECT_ID/coffee:v2
+```
 
-Validate that the image was updated (the image id has changed):
+Lets say I needed to control the JVM version, this is possible with envvars, in this case you can pass `GOOGLE_RUNTIME_VERSION`. More exist in the documentation - this build will fail becuase the app is designed for Java 11! 
 
-docker images | grep spring-sample-app
-Re-run the app to see the updated message:
+```bash
+pack build --publish eu.gcr.io/$PROJECT_ID/coffee:v8 --env GOOGLE_RUNTIME_VERSION="8"
+```
 
-docker run -it -p 8080:8080 spring-sample-app
-Send a request to the app:
+```bash
+#cloud build
+```
 
-curl localhost:8080; echo
-Send Ctrl+C to stop the app before proceeding to the next step.
 
-Inspect & customize the image
-pack provides a way to inspect our app image:
 
-pack inspect-image spring-sample-app
-You can see the run image and the buildpacks used to create the app image. What if you want to influence the build by adding a few instructions? One option is to add a custom buildpack.
+### Operations View
 
-Add a custom buildpack
-Since buildpacks are modular and pluggable, we can contribute our own custom buildpacks to the build. You can read more about creating custom buildpacks here later, but for now, let's use a simple example custom buildpack. This buildpack just prints some lines to the log during the build, but you could create a custom buildpack that does anything that makes sense for your organization or your application.
+Great, the devs are happy but whats in it for the ops folks?
 
-To run the sample buildpack, you could list each buildpack that you see in the output of the inspect-image command in your pack build command, in order, and include your custom buildpack in the list. Alternatively, you can use the shorthand from=builder, as shown below, to cause the custom buildpack to run before or after the buildpacks from the builder.
+pack provides a way to inspect our app image;
 
-Re-run the pack build command as shown below to run the custom buildpack after the builder buildpacks have run:
+```bash
+pack inspect-image eu.gcr.io/$PROJECT_ID/coffee:v2 
+```
 
-pack build spring-sample-app \
-     --buildpack from=builder \
-     --buildpack ~/samples/buildpacks/hello-world
-Find the log entries showing the custom buildpack was executed, starting with:
+```bash
+#OUTPUT
+Inspecting image: eu.gcr.io/clijockey/coffee:v2
 
-[builder] ---> Hello World buildpack
-Look through the rest of the log and notice that the existing layers and cache, which were not altered by the addition of the custom buildpack, were re-used.
+REMOTE:
+(not present)
 
-You can also inspect the image again to validate the additional buildpack was used.
+LOCAL:
 
-pack inspect-image spring-sample-app
-Diving deeper: rebasing, publishing, setting env vars, and more...
-To learn more about other cool features like re-basing, publishing to a remote docker registry, setting build-time environment variables, and more, please refer to the documentation and git repo.
+Stack: google
 
-For now, complete the other scenarios in this course to explore alternate platforms for using buildpacks to translate source code to images.
+Base Image:
+  Reference: 64b0eb7764de6dbabd4cd5eae74b32bff502fc5c73c5f63fd2e765a24c808ec4
+  Top Layer: sha256:a32133ac24cdf5636d4391071824aaa53d7eac8aac5e94aba71a803b74027453
+
+Run Images:
+  gcr.io/buildpacks/gcp/run:v1
+
+Buildpacks:
+  ID                            VERSION
+  google.java.runtime           0.9.0
+  google.java.maven             0.9.0
+  google.java.entrypoint        0.9.0
+  google.utils.label            0.0.1
+
+Processes:
+  TYPE                 SHELL        COMMAND        ARGS
+  web (default)                     java           -jar /workspace/target/demo-0.0.1-SNAPSHOT.jar
+
+
+```
+
+A bill of materials also exists to help with audit.
+
+```
+pack inspect-image eu.gcr.io/$PROJECT_ID/coffee:v2 --bom | jq .
+```
+
+Since buildpacks are modular and pluggable, we can contribute our own custom buildpacks to the build or use another one that exists. 
+
+Lets create the image with a different builder and see what that looks like;
+
+```bash
+pack suggest-builders
+pack inspect-builder gcr.io/buildpacks/builder:v1
+pack inspect-builder gcr.io/paketo-buildpacks/builder:full-cf
+```
+Great, lets build using a different builder
+
+```bash
+pack build eu.gcr.io/$PROJECT_ID/coffee:cf --builder gcr.io/paketo-buildpacks/builder:full-cf
+```
+```bash
+docker images
+dive eu.gcr.io/$PROJECT_ID/coffee:cf
+pack inspect-image eu.gcr.io/$PROJECT_ID/coffee:cf
+pack inspect-image eu.gcr.io/$PROJECT_ID/coffee:cf --bom | jq .
+```
+
+You can alter the default builders with  `pack set-default-builder gcr.io/buildpacks/builder:v1`
+
+#### Rebase is WIP
+
+```bash
+# Change layer/rebase
+
+pack rebase eu.gcr.io/$PROJECT_ID/coffee:v3 --run-image gcr.io/buildpacks/gcp/run:504104bbd82cffb03454f9527bd20bf1a72ce852
+pack inspect-image eu.gcr.io/$PROJECT_ID/coffee:v3
+dive eu.gcr.io/$PROJECT_ID/coffee:v3
+```
+
+```bash
+#pack build eu.gcr.io/$PROJECT_ID/coffee:v3 --builder gcr.io/buildpacks/builder:775ac8cb2b824aca86f96604f8f8345fb1568cfd
+```
+
+```bash
+#pack rebase eu.gcr.io/$PROJECT_ID/coffee:v3 --run-image gcr.io/buildpacks/gcp/run:latest  
+#pack rebase eu.gcr.io/$PROJECT_ID/coffee:v3 --run-image gcr.io/buildpacks/gcp/
+```
+
+### Serverless and Cloud Run
+
+What about creating a Cloud Function
+```bash
+pack build fn-coffee --builder gcr.io/buildpacks/builder:v1 --env GOOGLE_FUNCTION_TARGET=myFunction
+```
+You can also use Cloud Run to be triggered on git changes and make use of buildpacks to automatically create image and deploy - https://cloud.google.com/run/docs/continuous-deployment-with-cloud-build
